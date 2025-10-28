@@ -4,11 +4,10 @@ import websockets
 
 OKX_WS_URL = "wss://wspap.okx.com:443/ws/v5/public?brokerId=9999"
 
-# Public channels for BTC/USD (spot and swap)
+# Public channels for BTC/USD
 SUBSCRIPTIONS = [
-    {"op": "subscribe", "args": [{"channel": "tickers", "instId": "BTC-USD"}]}  # Swap
+    {"op": "subscribe", "args": [{"channel": "tickers", "instId": "BTC-USD"}]}
 ]
-
 
 
 async def heartbeat(ws):
@@ -21,35 +20,50 @@ async def heartbeat(ws):
             print("Heartbeat stopped:", e)
             break
 
+
+async def print_prices(latest_data):
+    """Print best bid/ask every second."""
+    while True:
+        askPx = latest_data.get("askPx", "N/A")
+        askSz = latest_data.get("askSz", "N/A")
+        bidPx = latest_data.get("bidPx", "N/A")
+        bidSz = latest_data.get("bidSz", "N/A")
+
+        print(f"askPx: {askPx}, askSz: {askSz}, bidPx: {bidPx}, bidSz: {bidSz}")
+        await asyncio.sleep(1)
+
+
 async def main():
+    latest_data = {}
+
     async with websockets.connect(OKX_WS_URL) as ws:
-        # Subscribe to tickers
+        # Send subscription
         for sub in SUBSCRIPTIONS:
             await ws.send(json.dumps(sub))
             print("Sent subscription:", json.dumps(sub))
 
-        # Start heartbeat
+        # Start background tasks
         asyncio.create_task(heartbeat(ws))
+        asyncio.create_task(print_prices(latest_data))
 
-        # Read messages
+        # Handle incoming messages
         async for msg in ws:
             msg = msg.strip()
-            if msg == "pong" or msg == "":
-                print("(pong)")
+            if msg in ("pong", ""):
                 continue
 
             try:
                 data = json.loads(msg)
             except json.JSONDecodeError:
-                print("Non-JSON message:", msg)
                 continue
 
-            if "event" in data:
-                print("Event:", data)
-            elif "arg" in data and "data" in data:
-                print("jsonObj:", data)
-            else:
-                print("Other:", data)
+            if "arg" in data and "data" in data:
+                # Extract first (latest) tick
+                tick = data["data"][0]
+                latest_data["askPx"] = tick.get("askPx", "N/A")
+                latest_data["askSz"] = tick.get("askSz", "N/A")
+                latest_data["bidPx"] = tick.get("bidPx", "N/A")
+                latest_data["bidSz"] = tick.get("bidSz", "N/A")
 
 if __name__ == "__main__":
     asyncio.run(main())
