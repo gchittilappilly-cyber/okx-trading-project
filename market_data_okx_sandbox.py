@@ -1,8 +1,28 @@
 import asyncio
 import json
 import websockets
+import ssl, certifi # certifi is a Python package that contains a current, verified list
+#                     of trusted Certificate Authorities (CAs) - the same ones browsers use.
+#                     When Python’s built-in SSL verifier doesn’t trust a certificate, certifi
+#                     provides an updated CA list to fix that.
+import sys
 
 OKX_WS_URL = "wss://wspap.okx.com:443/ws/v5/public?brokerId=9999"
+
+ssl_context = ssl.create_default_context(cafile=certifi.where()) # ssl.create_default_context() creates a standard
+#                                                                  TLS client context (object which controls certif-
+#                                                                  icate verification, allowed protocols, ciphers, etc
+#                                                                * By default, it would use your system or Python's
+#                                                                * internal CA bundle - which might be incomplete.
+#                                                                * By adding cafile=certifi.where(), we explicitly tell
+#                                                                  it: "Use the trusted CA certificates from certifi
+#                                                                  instead."
+#                                                                * So now, when Python performs the TLS handshake, it
+#                                                                  checks the OKX server’s certificate against
+#                                                                  certifi’s root CA list.
+#                                                                * Since OKX’s certificate chain is valid (just not
+#                                                                  in your older default bundle), the handshake now
+#                                                                  succeeds.
 
 # Public channels for BTC/USD
 SUBSCRIPTIONS = [
@@ -22,21 +42,27 @@ async def heartbeat(ws):
 
 
 async def print_prices(latest_data):
-    """Print best bid/ask every second."""
+    """Print best bid/ask on one continuously updating line."""
     while True:
         askPx = latest_data.get("askPx", "N/A")
         askSz = latest_data.get("askSz", "N/A")
         bidPx = latest_data.get("bidPx", "N/A")
         bidSz = latest_data.get("bidSz", "N/A")
 
-        print(f"askPx: {askPx}, askSz: {askSz}, bidPx: {bidPx}, bidSz: {bidSz}")
+        # '\r' returns cursor to start of the line; end='' prevents newline
+        # flush=True ensures it shows immediately
+        sys.stdout.write(
+            f"\raskPx: {askPx}, askSz: {askSz}, bidPx: {bidPx}, bidSz: {bidSz} 😭✌️🥀"
+        )
+        sys.stdout.flush()
+
         await asyncio.sleep(1)
 
 
 async def main():
     latest_data = {}
 
-    async with websockets.connect(OKX_WS_URL) as ws:
+    async with websockets.connect(OKX_WS_URL, ssl=ssl_context) as ws:
         # Send subscription
         for sub in SUBSCRIPTIONS:
             await ws.send(json.dumps(sub))
