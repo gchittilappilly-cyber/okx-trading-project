@@ -7,7 +7,7 @@ import ssl, certifi # certifi is a Python package that contains a current, verif
 #                     provides an updated CA list to fix that.
 import sys
 
-OKX_WS_URL = "wss://wspap.okx.com:443/ws/v5/public?brokerId=9999"
+OKX_WS_URL = "wss://wspap.okx.com:8443/ws/v5/public?brokerId=9999" #updated port num
 
 ssl_context = ssl.create_default_context(cafile=certifi.where()) # ssl.create_default_context() creates a standard
 #                                                                  TLS client context (object which controls certif-
@@ -26,7 +26,7 @@ ssl_context = ssl.create_default_context(cafile=certifi.where()) # ssl.create_de
 
 # Public channels for BTC/USD
 SUBSCRIPTIONS = [
-    {"op": "subscribe", "args": [{"channel": "tickers", "instId": "BTC-USD"}]}
+    {"op": "subscribe", "args": [{"channel": "tickers", "instId": "BTC-USDT"}]}
 ]
 
 
